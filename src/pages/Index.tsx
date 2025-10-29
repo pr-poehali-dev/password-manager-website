@@ -7,6 +7,7 @@ import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle, Di
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import Icon from '@/components/ui/icon';
 import { useToast } from '@/hooks/use-toast';
 
@@ -20,7 +21,13 @@ interface PasswordEntry {
   createdAt: number;
 }
 
-const CATEGORIES = [
+interface Category {
+  value: string;
+  label: string;
+  icon: string;
+}
+
+const DEFAULT_CATEGORIES: Category[] = [
   { value: 'work', label: 'Работа', icon: 'Briefcase' },
   { value: 'personal', label: 'Личное', icon: 'User' },
   { value: 'finance', label: 'Финансы', icon: 'CreditCard' },
@@ -28,12 +35,21 @@ const CATEGORIES = [
   { value: 'other', label: 'Другое', icon: 'FolderOpen' }
 ];
 
+const AVAILABLE_ICONS = [
+  'Briefcase', 'User', 'CreditCard', 'MessageCircle', 'FolderOpen', 
+  'Globe', 'Lock', 'Key', 'Mail', 'Phone', 'ShoppingCart', 
+  'Home', 'Music', 'Video', 'Book', 'Heart', 'Star', 'Zap'
+];
+
 const Index = () => {
   const [entries, setEntries] = useState<PasswordEntry[]>([]);
+  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [isAddDialogOpen, setIsAddDialogOpen] = useState(false);
+  const [isCategoryDialogOpen, setIsCategoryDialogOpen] = useState(false);
   const [editingEntry, setEditingEntry] = useState<PasswordEntry | null>(null);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
   const [showPassword, setShowPassword] = useState<Record<string, boolean>>({});
   const { toast } = useToast();
 
@@ -45,20 +61,35 @@ const Index = () => {
     category: 'personal'
   });
 
+  const [categoryFormData, setCategoryFormData] = useState({
+    label: '',
+    icon: 'FolderOpen'
+  });
+
   useEffect(() => {
-    const stored = localStorage.getItem('passwordEntries');
-    if (stored) {
-      const parsed = JSON.parse(stored);
+    const storedEntries = localStorage.getItem('passwordEntries');
+    const storedCategories = localStorage.getItem('passwordCategories');
+    
+    if (storedEntries) {
+      const parsed = JSON.parse(storedEntries);
       const migratedEntries = parsed.map((entry: any) => ({
         ...entry,
         category: entry.category || 'other'
       }));
       setEntries(migratedEntries);
     }
+
+    if (storedCategories) {
+      setCategories(JSON.parse(storedCategories));
+    }
   }, []);
 
   const saveToLocalStorage = (data: PasswordEntry[]) => {
     localStorage.setItem('passwordEntries', JSON.stringify(data));
+  };
+
+  const saveCategoriesToLocalStorage = (data: Category[]) => {
+    localStorage.setItem('passwordCategories', JSON.stringify(data));
   };
 
   const handleAddEntry = () => {
@@ -109,6 +140,85 @@ const Index = () => {
     setEditingEntry(null);
   };
 
+  const handleAddCategory = () => {
+    if (!categoryFormData.label) {
+      toast({
+        title: 'Ошибка',
+        description: 'Введите название категории',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (editingCategory) {
+      const updatedCategories = categories.map(cat =>
+        cat.value === editingCategory.value
+          ? { ...cat, label: categoryFormData.label, icon: categoryFormData.icon }
+          : cat
+      );
+      setCategories(updatedCategories);
+      saveCategoriesToLocalStorage(updatedCategories);
+      toast({
+        title: 'Обновлено',
+        description: 'Категория успешно обновлена'
+      });
+    } else {
+      const newCategory: Category = {
+        value: `custom_${Date.now()}`,
+        label: categoryFormData.label,
+        icon: categoryFormData.icon
+      };
+
+      const updatedCategories = [...categories, newCategory];
+      setCategories(updatedCategories);
+      saveCategoriesToLocalStorage(updatedCategories);
+
+      toast({
+        title: 'Успешно',
+        description: 'Категория добавлена'
+      });
+    }
+
+    setCategoryFormData({ label: '', icon: 'FolderOpen' });
+    setIsCategoryDialogOpen(false);
+    setEditingCategory(null);
+  };
+
+  const handleEditCategory = (category: Category) => {
+    setEditingCategory(category);
+    setCategoryFormData({
+      label: category.label,
+      icon: category.icon
+    });
+    setIsCategoryDialogOpen(true);
+  };
+
+  const handleDeleteCategory = (categoryValue: string) => {
+    const entriesInCategory = entries.filter(e => e.category === categoryValue).length;
+    
+    if (entriesInCategory > 0) {
+      toast({
+        title: 'Ошибка',
+        description: `В этой категории ${entriesInCategory} записей. Сначала удалите их или переместите в другую категорию.`,
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    const updatedCategories = categories.filter(cat => cat.value !== categoryValue);
+    setCategories(updatedCategories);
+    saveCategoriesToLocalStorage(updatedCategories);
+
+    if (selectedCategory === categoryValue) {
+      setSelectedCategory('all');
+    }
+
+    toast({
+      title: 'Удалено',
+      description: 'Категория удалена'
+    });
+  };
+
   const handleEditEntry = (entry: PasswordEntry) => {
     setEditingEntry(entry);
     setFormData({
@@ -149,6 +259,14 @@ const Index = () => {
     if (!open) {
       setEditingEntry(null);
       setFormData({ site: '', login: '', password: '', recoveryCode: '', category: 'personal' });
+    }
+  };
+
+  const handleCategoryDialogClose = (open: boolean) => {
+    setIsCategoryDialogOpen(open);
+    if (!open) {
+      setEditingCategory(null);
+      setCategoryFormData({ label: '', icon: 'FolderOpen' });
     }
   };
 
@@ -212,7 +330,7 @@ const Index = () => {
                         <SelectValue placeholder="Выберите категорию" />
                       </SelectTrigger>
                       <SelectContent>
-                        {CATEGORIES.map(cat => (
+                        {categories.map(cat => (
                           <SelectItem key={cat.value} value={cat.value}>
                             <div className="flex items-center gap-2">
                               <Icon name={cat.icon as any} size={16} />
@@ -270,20 +388,105 @@ const Index = () => {
             </Dialog>
           </div>
 
-          <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="animate-fade-in" style={{ animationDelay: '0.2s' }}>
-            <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1">
-              <TabsTrigger value="all" className="gap-2">
-                <Icon name="Layers" size={16} />
-                Все ({entries.length})
-              </TabsTrigger>
-              {CATEGORIES.map(cat => (
-                <TabsTrigger key={cat.value} value={cat.value} className="gap-2">
-                  <Icon name={cat.icon as any} size={16} />
-                  {cat.label} ({getCategoryCount(cat.value)})
+          <div className="flex items-center justify-between animate-fade-in" style={{ animationDelay: '0.2s' }}>
+            <Tabs value={selectedCategory} onValueChange={setSelectedCategory} className="flex-1">
+              <TabsList className="w-full justify-start overflow-x-auto flex-nowrap h-auto p-1">
+                <TabsTrigger value="all" className="gap-2">
+                  <Icon name="Layers" size={16} />
+                  Все ({entries.length})
                 </TabsTrigger>
-              ))}
-            </TabsList>
-          </Tabs>
+                {categories.map(cat => (
+                  <TabsTrigger key={cat.value} value={cat.value} className="gap-2 group relative">
+                    <Icon name={cat.icon as any} size={16} />
+                    {cat.label} ({getCategoryCount(cat.value)})
+                  </TabsTrigger>
+                ))}
+              </TabsList>
+            </Tabs>
+            
+            <Dialog open={isCategoryDialogOpen} onOpenChange={handleCategoryDialogClose}>
+              <DialogTrigger asChild>
+                <Button variant="outline" size="icon" className="ml-4">
+                  <Icon name="Settings" size={18} />
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="sm:max-w-md">
+                <DialogHeader>
+                  <DialogTitle>{editingCategory ? 'Редактировать категорию' : 'Добавить категорию'}</DialogTitle>
+                  <DialogDescription>
+                    {editingCategory ? 'Измените название или иконку' : 'Создайте свою категорию'}
+                  </DialogDescription>
+                </DialogHeader>
+                <div className="space-y-4 pt-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="categoryLabel">Название *</Label>
+                    <Input
+                      id="categoryLabel"
+                      placeholder="Название категории"
+                      value={categoryFormData.label}
+                      onChange={(e) => setCategoryFormData({ ...categoryFormData, label: e.target.value })}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="categoryIcon">Иконка *</Label>
+                    <Select value={categoryFormData.icon} onValueChange={(value) => setCategoryFormData({ ...categoryFormData, icon: value })}>
+                      <SelectTrigger>
+                        <SelectValue />
+                      </SelectTrigger>
+                      <SelectContent className="max-h-[300px]">
+                        {AVAILABLE_ICONS.map(icon => (
+                          <SelectItem key={icon} value={icon}>
+                            <div className="flex items-center gap-2">
+                              <Icon name={icon as any} size={16} />
+                              {icon}
+                            </div>
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <Button onClick={handleAddCategory} className="w-full">
+                    {editingCategory ? 'Обновить' : 'Создать'}
+                  </Button>
+
+                  {categories.length > 0 && (
+                    <div className="pt-4 border-t">
+                      <Label className="text-sm font-semibold mb-3 block">Управление категориями</Label>
+                      <div className="space-y-2 max-h-[200px] overflow-y-auto">
+                        {categories.map(cat => (
+                          <div key={cat.value} className="flex items-center justify-between p-2 rounded-md hover:bg-muted">
+                            <div className="flex items-center gap-2">
+                              <Icon name={cat.icon as any} size={16} />
+                              <span className="text-sm">{cat.label}</span>
+                              <span className="text-xs text-muted-foreground">({getCategoryCount(cat.value)})</span>
+                            </div>
+                            <div className="flex gap-1">
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleEditCategory(cat)}
+                              >
+                                <Icon name="Pencil" size={14} />
+                              </Button>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-8 w-8"
+                                onClick={() => handleDeleteCategory(cat.value)}
+                              >
+                                <Icon name="Trash2" size={14} className="text-destructive" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </DialogContent>
+            </Dialog>
+          </div>
 
           {filteredEntries.length === 0 && !searchQuery && (
             <Card className="animate-fade-in" style={{ animationDelay: '0.3s' }}>
@@ -310,7 +513,7 @@ const Index = () => {
 
           <div className="space-y-3">
             {filteredEntries.map((entry, index) => {
-              const category = CATEGORIES.find(c => c.value === entry.category);
+              const category = categories.find(c => c.value === entry.category);
               return (
                 <Card key={entry.id} className="animate-fade-in hover-scale border-l-4 border-l-primary/40" style={{ animationDelay: `${0.05 * (index + 1)}s` }}>
                   <CardHeader className="pb-3">
@@ -399,7 +602,7 @@ const Index = () => {
             <Icon name="ShieldCheck" size={16} />
             <span>Все данные хранятся локально в вашем браузере</span>
           </div>
-          <p></p>
+          <p>Никакая информация не передается на сервер</p>
         </footer>
       </div>
     </div>

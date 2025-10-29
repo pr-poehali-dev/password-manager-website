@@ -97,6 +97,29 @@ const Index = () => {
     setShowPassword(prev => ({ ...prev, [id]: !prev[id] }));
   };
 
+  const sharePassword = async (entry: PasswordEntry) => {
+    const shareText = `Мой логин и пароль от ${entry.site}:\n\nЛогин: ${entry.login}\nПароль: ${entry.password}${entry.recoveryCode ? `\nКод восстановления: ${entry.recoveryCode}` : ''}`;
+
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Данные от ${entry.site}`,
+          text: shareText
+        });
+        toast({
+          title: 'Отправлено',
+          description: 'Данные успешно переданы'
+        });
+      } catch (err) {
+        if ((err as Error).name !== 'AbortError') {
+          copyToClipboard(shareText, 'Текст для отправки');
+        }
+      }
+    } else {
+      copyToClipboard(shareText, 'Текст для отправки');
+    }
+  };
+
   const filteredEntries = entries.filter(entry =>
     entry.site.toLowerCase().includes(searchQuery.toLowerCase()) ||
     entry.login.toLowerCase().includes(searchQuery.toLowerCase())
@@ -105,14 +128,14 @@ const Index = () => {
   return (
     <div className="min-h-screen bg-background">
       <div className="container max-w-4xl mx-auto px-4 py-8">
-        <header className="mb-8 animate-fade-in">
-          <div className="flex items-center gap-3 mb-2">
-            <div className="w-12 h-12 bg-primary rounded-lg flex items-center justify-center">
-              <Icon name="Shield" size={28} className="text-primary-foreground" />
+        <header className="mb-10 animate-fade-in">
+          <div className="flex items-center gap-4 mb-3">
+            <div className="w-14 h-14 bg-gradient-to-br from-primary to-primary/80 rounded-xl flex items-center justify-center shadow-lg shadow-primary/20">
+              <Icon name="ShieldCheck" size={32} className="text-primary-foreground" />
             </div>
             <div>
-              <h1 className="text-3xl font-bold text-foreground">Менеджер Паролей</h1>
-              <p className="text-muted-foreground text-sm">Надежное хранение данных</p>
+              <h1 className="text-4xl font-bold text-foreground tracking-tight">Менеджер Паролей</h1>
+              <p className="text-muted-foreground">Надежное хранение данных</p>
             </div>
           </div>
         </header>
@@ -125,13 +148,13 @@ const Index = () => {
                 placeholder="Поиск по сайту или логину..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 h-12"
+                className="pl-10 h-12 border-2 focus-visible:ring-2"
               />
             </div>
             
             <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
               <DialogTrigger asChild>
-                <Button size="lg" className="gap-2 h-12">
+                <Button size="lg" className="gap-2 h-12 shadow-md shadow-primary/20 hover:shadow-lg hover:shadow-primary/30 transition-all">
                   <Icon name="Plus" size={20} />
                   Добавить
                 </Button>
@@ -216,22 +239,23 @@ const Index = () => {
 
           <div className="space-y-3">
             {filteredEntries.map((entry, index) => (
-              <Card key={entry.id} className="animate-fade-in hover-scale" style={{ animationDelay: `${0.1 * (index + 1)}s` }}>
-                <CardHeader>
+              <Card key={entry.id} className="animate-fade-in hover-scale border-l-4 border-l-primary/40" style={{ animationDelay: `${0.1 * (index + 1)}s` }}>
+                <CardHeader className="pb-3">
                   <div className="flex items-start justify-between">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 bg-primary/10 rounded-lg flex items-center justify-center">
-                        <Icon name="Globe" size={20} className="text-primary" />
+                      <div className="w-11 h-11 bg-gradient-to-br from-primary/10 to-primary/5 rounded-xl flex items-center justify-center">
+                        <Icon name="Globe" size={22} className="text-primary" />
                       </div>
                       <div>
-                        <CardTitle className="text-lg">{entry.site}</CardTitle>
-                        <CardDescription>{entry.login}</CardDescription>
+                        <CardTitle className="text-lg font-semibold">{entry.site}</CardTitle>
+                        <CardDescription className="text-sm">{entry.login}</CardDescription>
                       </div>
                     </div>
                     <Button
                       variant="ghost"
                       size="icon"
                       onClick={() => handleDeleteEntry(entry.id)}
+                      className="hover:bg-destructive/10"
                     >
                       <Icon name="Trash2" size={18} className="text-destructive" />
                     </Button>
@@ -255,6 +279,13 @@ const Index = () => {
                       onClick={() => copyToClipboard(entry.password, 'Пароль')}
                     >
                       <Icon name="Copy" size={18} />
+                    </Button>
+                    <Button
+                      variant="outline"
+                      size="icon"
+                      onClick={() => sharePassword(entry)}
+                    >
+                      <Icon name="Share2" size={18} />
                     </Button>
                   </div>
 

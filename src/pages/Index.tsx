@@ -602,7 +602,7 @@ const Index = () => {
             <Icon name="ShieldCheck" size={16} />
             <span>Все данные хранятся локально в вашем браузере</span>
           </div>
-          <p>Никакая информация не передается на сервер</p>
+          <p></p>
         </footer>
       </div>
     </div>

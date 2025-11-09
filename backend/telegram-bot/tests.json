@@ -1,0 +1,31 @@
+{
+  "tests": [
+    {
+      "name": "Test OPTIONS preflight request",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedHeaders": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
+      "name": "Test webhook with start command",
+      "method": "POST",
+      "path": "/",
+      "body": {
+        "message": {
+          "chat": {"id": 123456},
+          "from": {"id": 123456, "username": "testuser"},
+          "text": "/start"
+        }
+      },
+      "expectedStatus": 200,
+      "expectedBody": {
+        "method": "sendMessage",
+        "chat_id": 123456
+      },
+      "bodyMatcher": "partial"
+    }
+  ]
+}

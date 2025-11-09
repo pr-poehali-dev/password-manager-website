@@ -1,0 +1,29 @@
+{
+  "tests": [
+    {
+      "name": "Test OPTIONS request",
+      "method": "OPTIONS",
+      "path": "/",
+      "expectedStatus": 200,
+      "expectedHeaders": {
+        "Access-Control-Allow-Origin": "*"
+      }
+    },
+    {
+      "name": "Test login endpoint with invalid credentials",
+      "method": "POST",
+      "path": "/?action=login",
+      "body": {
+        "email": "test@example.com",
+        "password": "wrongpass"
+      },
+      "expectedStatus": 401
+    },
+    {
+      "name": "Test stats without auth token",
+      "method": "GET",
+      "path": "/?action=stats",
+      "expectedStatus": 401
+    }
+  ]
+}
